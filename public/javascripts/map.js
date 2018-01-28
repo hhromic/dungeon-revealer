@@ -627,26 +627,36 @@ define(['settings', 'jquery', 'brush'], function (settings, jquery, brush) {
                     toggleButton.innerHTML = 'Clear Brush';
                 }
                 fowBrush.toggle();
+                drawingTarget = 'fow';
+                $('#btn-toggle-position').text('Set Position');
             });
 
             $('#btn-shroud-all').click(function () {
                 fogMap(fowContext);
                 createRender();
+                drawingTarget = 'fow';
+                $('#btn-toggle-position').text('Set Position');
             });
 
             $('#btn-clear-all').click(function () {
                 clearMap(fowContext);
                 createRender();
+                drawingTarget = 'fow';
+                $('#btn-toggle-position').text('Set Position');
             });
 
             $('#btn-enlarge-brush').click(function () {
                 // If the new width would be over 200, set it to 200
                 lineWidth = (lineWidth * 2 > 200) ? 200 : lineWidth * 2;
+                drawingTarget = 'fow';
+                $('#btn-toggle-position').text('Set Position');
             });
 
             $('#btn-shrink-brush').click(function () {
                 // If the new width would be less than 1, set it to 1
                 lineWidth = (lineWidth / 2 < 1) ? 1 : lineWidth / 2;
+                drawingTarget = 'fow';
+                $('#btn-toggle-position').text('Set Position');
             });
 
             $('#btn-shape-brush').click(function () {
@@ -658,7 +668,8 @@ define(['settings', 'jquery', 'brush'], function (settings, jquery, brush) {
                     toggleButton.innerHTML = 'Square Brush';
                     brushShape = 'round'
                 }
-
+                drawingTarget = 'fow';
+                $('#btn-toggle-position').text('Set Position');
             });
 
             $('#btn-toggle-position').click(function () {
