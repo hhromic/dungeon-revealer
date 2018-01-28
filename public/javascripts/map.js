@@ -2,16 +2,19 @@ define(['settings', 'jquery', 'brush'], function (settings, jquery, brush) {
     console.log('map module loaded');
     return function () {
         var $ = jquery,
-            cursorContext,
-            cursorCanvas,
-            fowContext,
-            fowCanvas,
             mapImageContext,
             mapImageCanvas,
+            fowContext,
+            fowCanvas,
+            positionContext,
+            positionCanvas,
+            cursorContext,
+            cursorCanvas,
             fowBrush,
             mapImage,
             width,
             height,
+            drawingTarget = 'fow',
             isDrawing = false,
             points = [],
             lineWidth = settings.defaultLineWidth,
@@ -57,12 +60,15 @@ define(['settings', 'jquery', 'brush'], function (settings, jquery, brush) {
                 parentElem.appendChild(container);
                 mapImageCanvas = canvases.mapImageCanvas;
                 fowCanvas = canvases.fowCanvas;
+                positionCanvas = canvases.positionCanvas;
                 cursorCanvas = canvases.cursorCanvas;
                 container.appendChild(mapImageCanvas);
                 container.appendChild(fowCanvas);
+                container.appendChild(positionCanvas);
                 container.appendChild(cursorCanvas);
                 mapImageContext = mapImageCanvas.getContext('2d');
                 fowContext = fowCanvas.getContext('2d');
+                positionContext = positionCanvas.getContext('2d');
                 cursorContext = cursorCanvas.getContext('2d');
                 copyCanvas(mapImageContext, createImageCanvas(mapImage));
                 fowBrush = brush(fowContext, opts);
@@ -93,28 +99,25 @@ define(['settings', 'jquery', 'brush'], function (settings, jquery, brush) {
         }
 
         function createCanvases() {
-
-            function createCanvas(type, zIndex) {
+            function createCanvas(name, zIndex) {
+                console.log('creating canvas \'' + name + '\'');
                 var canvas = document.createElement('canvas');
-
-                console.log('creating canvas ' + type);
+                canvas.id = name + Math.floor(Math.random() * 100000);
+                canvas.className = name + ' map-canvas';
                 canvas.width = width;
                 canvas.height = height;
-                canvas.id = type + Math.floor(Math.random() * 100000);
-                canvas.className = type + ' map-canvas';
                 canvas.style.position = 'absolute';
                 canvas.style.left = '0';
                 canvas.style.top = '0';
                 canvas.style.zIndex = zIndex;
-                zIndex++;
-
-                return canvas;
+                return canvas
             }
 
             return {
                 mapImageCanvas: createCanvas('map-image-canvas', 1),
                 fowCanvas: createCanvas('fow-canvas', 2),
-                cursorCanvas: createCanvas('cursor-canvas', 3)
+                positionCanvas: createCanvas('position-canvas', 3),
+                cursorCanvas: createCanvas('cursor-canvas', 4),
             };
 
         }
@@ -163,14 +166,15 @@ define(['settings', 'jquery', 'brush'], function (settings, jquery, brush) {
             context.drawImage(canvasToCopy, 0, 0, width, height);
         }
 
-        function mergeCanvas(bottomCanvas, topCanvas) {
+        function mergeCanvas(canvases) {
             var mergedCanvas = document.createElement('canvas'),
                 mergedContext = mergedCanvas.getContext('2d');
 
             mergedCanvas.width = width;
             mergedCanvas.height = height;
-            copyCanvas(mergedContext, bottomCanvas);
-            copyCanvas(mergedContext, topCanvas);
+            for (var i=0; i<canvases.length; i++) {
+                copyCanvas(mergedContext, canvases[i]);
+            }
 
             return mergedCanvas;
         }
@@ -206,10 +210,12 @@ define(['settings', 'jquery', 'brush'], function (settings, jquery, brush) {
         }
 
         function resize(displayWidth, displayHeight) {
-            fowCanvas.style.width = displayWidth + 'px';
-            fowCanvas.style.height = displayHeight + 'px';
             mapImageCanvas.style.width = displayWidth + 'px';
             mapImageCanvas.style.height = displayHeight + 'px';
+            fowCanvas.style.width = displayWidth + 'px';
+            fowCanvas.style.height = displayHeight + 'px';
+            positionCanvas.style.width = displayWidth + 'px';
+            positionCanvas.style.height = displayHeight + 'px';
             cursorCanvas.style.width = displayWidth + 'px';
             cursorCanvas.style.height = displayHeight + 'px';
         }
@@ -224,13 +230,14 @@ define(['settings', 'jquery', 'brush'], function (settings, jquery, brush) {
         }
 
         function toImage() {
-            return convertCanvasToImage(mergeCanvas(mapImageCanvas, fowCanvas));
+            return convertCanvasToImage(mergeCanvas([mapImageCanvas, fowCanvas, positionCanvas]));
         }
 
         function remove() {
             // won't work in IE
             mapImageCanvas.remove();
             fowCanvas.remove();
+            positionCanvas.remove();
             cursorCanvas.remove();
         }
 
@@ -413,15 +420,23 @@ define(['settings', 'jquery', 'brush'], function (settings, jquery, brush) {
 
             // Mouse Click
             cursorCanvas.onmousedown = function (e) {
-                // Start drawing
-                isDrawing = true;
+                if (drawingTarget == 'fow') {
+                    // Start drawing
+                    isDrawing = true;
 
-                // Get correct cords from mouse click
-                var cords = getMouseCoordinates(e);
+                    // Get correct cords from mouse click
+                    var cords = getMouseCoordinates(e);
 
-                // Draw initial Shape
-                // set lineWidth to 0 for initial drawing of shape to prevent screwing up of size/placement
-                fowCanvas.drawInitial(cords)
+                    // Draw initial Shape
+                    // set lineWidth to 0 for initial drawing of shape to prevent screwing up of size/placement
+                    fowCanvas.drawInitial(cords);
+                } else if (drawingTarget == 'position') {
+                    // Get correct cords from mouse click
+                    var cords = getMouseCoordinates(e);
+
+                    // set the position icon
+                    positionCanvas.setPosition(cords);
+                }
             };
 
             // Mouse Move
@@ -435,6 +450,22 @@ define(['settings', 'jquery', 'brush'], function (settings, jquery, brush) {
                 // Draw cursor and fow
                 cursorCanvas.drawCursor(cords);
                 fowCanvas.draw(points)
+            };
+
+            positionCanvas.setPosition = function (cords) {
+                var iconSize = 10;
+                var lineWidth = 4;
+                positionContext.clearRect(0, 0, positionCanvas.width, positionCanvas.height);
+                positionContext.beginPath();
+                positionContext.strokeStyle = 'red';
+                positionContext.lineWidth = lineWidth;
+                positionContext.moveTo(cords.x - iconSize, cords.y - iconSize);
+                positionContext.lineTo(cords.x + iconSize, cords.y + iconSize);
+                positionContext.stroke();
+                positionContext.moveTo(cords.x + iconSize, cords.y - iconSize);
+                positionContext.lineTo(cords.x - iconSize, cords.y + iconSize);
+                positionContext.stroke();
+                createRender();
             };
 
             cursorCanvas.drawCursor = function (cords) {
@@ -630,6 +661,17 @@ define(['settings', 'jquery', 'brush'], function (settings, jquery, brush) {
 
             });
 
+            $('#btn-toggle-position').click(function () {
+                var toggleButton = this;
+                if (toggleButton.innerHTML === 'Set Position') {
+                    toggleButton.innerHTML = 'Draw FOW';
+                    drawingTarget = 'position';
+                } else {
+                    toggleButton.innerHTML = 'Set Position';
+                    drawingTarget = 'fow';
+                }
+            });
+
             $('#btn-render').click(function () {
                 createRender();
             });
@@ -651,15 +693,15 @@ define(['settings', 'jquery', 'brush'], function (settings, jquery, brush) {
         //todo: move this functionality elsewher
         function createRender() {
             removeRender();
-            createPlayerMapImage(mapImageCanvas, fowCanvas);
+            createPlayerMapImage(mapImageCanvas, fowCanvas, positionCanvas);
         }
 
         function removeRender() {
             $('#render').remove();
         }
 
-        function createPlayerMapImage(bottomCanvas, topCanvas) {
-            var mergedCanvas = mergeCanvas(bottomCanvas, topCanvas),
+        function createPlayerMapImage(mapImageCanvas, fowCanvas, positionCanvas) {
+            var mergedCanvas = mergeCanvas([mapImageCanvas, fowCanvas, positionCanvas]),
                 mergedImage = convertCanvasToImage(mergedCanvas);
 
             mergedImage.id = 'render';
